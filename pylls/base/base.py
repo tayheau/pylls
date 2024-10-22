@@ -3,7 +3,6 @@ from typing import Union, Tuple
 from ..tools.tools import Hyperparameters
 
 Data = Union[np.ndarray, list, int, np.int64, float] 
-Arrays = Union[np.ndarray]
 
 class no_grad():
     """
@@ -27,7 +26,7 @@ class Tensor(Hyperparameters):
         self._backprop = lambda : None
         self.shape = self.data.shape
         self.requires_grad = requires_grad
-
+        
     def __repr__(self) -> str:
         return f'Tensor({self.data})'
 
@@ -130,6 +129,18 @@ class Tensor(Hyperparameters):
             o._requires_grad()
         return o
 
+    def transpose(self) -> 'Tensor':
+        """
+        Transpose the given Tensor
+        """
+        out = Tensor(self.data.T, children=(self, ))
+        if self.requires_grad and self.gradient_enabled:
+            def _backprop():
+                self.grad = self.grad.T
+            out.backprop = _backprop
+            out._requires_grad()
+        return out
+
     def __neg__(self):
         return self * -1
 
@@ -168,8 +179,6 @@ class Tensor(Hyperparameters):
         self.grad = np.ones_like(self.data)
         for value in reversed(topo_order):
             value._backprop()
-    
 
-
-
-
+    #TODO: 
+    #   - 
