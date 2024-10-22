@@ -3,3 +3,4 @@
 testing.ipynb
 __pycache__
 ./experiments
+./.DS_Store
