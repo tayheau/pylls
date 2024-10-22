@@ -1,6 +1,6 @@
-.test_import.ipynb
-.ipynb_checkpoints
+test_import.ipynb
 testing.ipynb
+/ipynb_checkpoints/
 __pycache__
-./experiments
+/experiments/
 ./.DS_Store
