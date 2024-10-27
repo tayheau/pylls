@@ -1,6 +1,6 @@
 import numpy as np
-from typing import Union, Tuple
-from ..tools.tools import Hyperparameters
+from typing import Optional, Union, Tuple
+
 
 Data = Union[np.ndarray, list, int, np.int64, float] 
 
@@ -15,13 +15,14 @@ class no_grad():
     def __exit__(self, exc_type, exc_val, exc_tb):
         Tensor.gradient_enabled = self.previous_gradient_state
 
-class Tensor(Hyperparameters):
+class Tensor():
     gradient_enabled : bool = True
     def __init__(self, data: Data, children = (), requires_grad: bool = False):
         assert isinstance(data, Data), f'Data must be of type {Data}, got {type(data)}'
         if type(data) != np.ndarray:
             data = np.array(data)
-        self.save_hyperparameters()
+        self.data = data
+        self.children = children
         self.grad = np.zeros_like(self.data)
         self._backprop = lambda : None
         self.shape = self.data.shape
@@ -60,12 +61,27 @@ class Tensor(Hyperparameters):
         broadcasted_axis = self._broadcasted_axis(new_shape)
         if self.requires_grad and self.gradient_enabled:
             def _backprop():
-                self.grad += np.sum(out.grad, axis=broadcasted_axis)
+                self.grad += np.sum(out.grad, axis=broadcasted_axis, keepdims=True)
             out._backprop = _backprop
             out._requires_grad()
         return out
 
-    def _preprocess(self, other: Union[Arrays, 'Tensor']) -> Tuple['Tensor', 'Tensor']:
+    def sum(self, axis:Union[int, Tuple[int], None] = None, keepdims:bool = False):
+        out = Tensor(np.sum(self.data, axis = axis, keepdims = keepdims), children=(self,))
+        if self.requires_grad and self.gradient_enabled:
+            def _backprop():
+                grad_to_add = out.grad
+                if axis is not None and not keepdims:
+                    grad_to_add = np.reshape(out.grad, np.shape(self.data)) 
+#                    self.grad += np.expand_dims(out.grad, axis= axis) * np.ones_like(self.data)
+#                else:
+#                    self.grad += out.grad * np.ones_like(self.data)
+                self.grad += grad_to_add * np.ones_like(self.grad)
+            out._backprop = _backprop
+            out._requires_grad()
+        return out
+
+    def _preprocess(self, other: Union[np.ndarray, 'Tensor']) -> Tuple['Tensor', 'Tensor']:
         """
         Preprocessing of the Tensors, checking their type and shape, broadcast if needed.
         """
@@ -75,7 +91,7 @@ class Tensor(Hyperparameters):
             self, other = self._broadcast(shape), other._broadcast(shape)
         return self, other
     
-    def __add__(self, other: Union[Arrays, 'Tensor']) -> 'Tensor':
+    def __add__(self, other: Union[np.ndarray, 'Tensor']) -> 'Tensor':
         _, other = self._preprocess(other)
         o = Tensor(self.data + other.data, children = (self, other))
         if self.requires_grad and self.gradient_enabled:
@@ -176,9 +192,9 @@ class Tensor(Hyperparameters):
                     visit(children)
                 topo_order.append(node)
         visit(self)
-        self.grad = np.ones_like(self.data)
+        self.grad = np.ones_like(self.grad)
         for value in reversed(topo_order):
             value._backprop()
 
     #TODO: 
-    #   - 
+    #   -implement the sum() methods and its backprop 
