@@ -61,7 +61,7 @@ class Tensor():
         broadcasted_axis = self._broadcasted_axis(new_shape)
         if self.requires_grad and self.gradient_enabled:
             def _backprop():
-                self.grad += np.sum(out.grad, axis=broadcasted_axis, keepdims=True)
+                self.grad += np.sum(out.grad, axis=broadcasted_axis)
             out._backprop = _backprop
             out._requires_grad()
         return out
@@ -70,16 +70,28 @@ class Tensor():
         out = Tensor(np.sum(self.data, axis = axis, keepdims = keepdims), children=(self,))
         if self.requires_grad and self.gradient_enabled:
             def _backprop():
-                grad_to_add = out.grad
+#                grad_to_add = out.grad
                 if axis is not None and not keepdims:
-                    grad_to_add = np.reshape(out.grad, np.shape(self.data)) 
-#                    self.grad += np.expand_dims(out.grad, axis= axis) * np.ones_like(self.data)
-#                else:
-#                    self.grad += out.grad * np.ones_like(self.data)
-                self.grad += grad_to_add * np.ones_like(self.grad)
+#                    grad_to_add = np.reshape(out.grad, np.shape(self.data)) 
+                    self.grad += np.expand_dims(out.grad, axis= axis) * np.ones_like(self.data)
+                else:
+                    self.grad += out.grad * np.ones_like(self.data)
+#                self.grad += grad_to_add * np.ones_like(self.grad)
             out._backprop = _backprop
             out._requires_grad()
         return out
+
+    def exp(self) -> 'Tensor':
+        """
+        Process the exponential of the tensor
+        """
+        o = Tensor(np.exp(self.data), children=(self,))
+        if self.requires_grad and self.gradient_enabled:
+            def _backprop():
+                self.grad += o.data * o.grad
+            o._backprop = _backprop
+            o._requires_grad()
+        return o
 
     def _preprocess(self, other: Union[np.ndarray, 'Tensor']) -> Tuple['Tensor', 'Tensor']:
         """
@@ -115,7 +127,7 @@ class Tensor():
     
     def __pow__(self, exponent:Union[int, float]) -> 'Tensor':
         new_data = self.data ** exponent if exponent > 0 else 1 / (self.data ** -exponent)
-        o = Tensor(self.data ** exponent, children=(self, ))
+        o = Tensor(new_data, children=(self, ))
         if self.gradient_enabled and self.requires_grad:
             def _backprop():
                 self.grad += exponent * (self.data ** (exponent - 1)) * o.grad
@@ -152,13 +164,13 @@ class Tensor():
         out = Tensor(self.data.T, children=(self, ))
         if self.requires_grad and self.gradient_enabled:
             def _backprop():
-                self.grad = self.grad.T
-            out.backprop = _backprop
+                self.grad += out.grad.T
+            out._backprop = _backprop
             out._requires_grad()
         return out
 
     def __neg__(self):
-        return self * -1
+        return self * -1.
 
     def __radd__(self, other):
         return self + other

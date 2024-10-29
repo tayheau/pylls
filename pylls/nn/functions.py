@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Union
 import numpy as np
 from pylls.base.base import Tensor
 
@@ -23,10 +23,21 @@ def MSE(x:Tensor, y:Tensor) -> Tensor:
     out = ((y - x) ** 2).sum()
     return out
 
+def softmax(input:Tensor, axis:int = -1) -> Tensor:
+    max_input = Tensor(np.max(input.data, axis= axis), children=(input,))
+    num = (input - max_input).exp()
+    denum = num.sum(axis= axis, keepdims= True)
+    out = num / denum
+    return out
+
+#def CrossEntropyLoss(prediction:Tensor, label:Tensor) -> Tensor:
+
+
 #TODO: 
 ######ACTIVATIONS#####
 #   - sigmoid
 #   - ReLU
-#   - softmax
+#   - softmax --done--
 ######LOSS###########
-#   - MSE
+#   - MSE --done--
+#   - cross entropy
